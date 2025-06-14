@@ -46,27 +46,89 @@ ORDER BY SUM(total_claim_count) DESC;
 
 --b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.**
 
-SELECT drug_name, generic_name, total_drug_cost
+SELECT generic_name, SUM(total_drug_cost)
 FROM prescription
 JOIN drug
 USING (drug_name)
-ORDER BY total_drug_cost DESC;
+GROUP BY generic_name
+ORDER BY SUM(total_drug_cost) DESC;
 
---Answer a. PIRFENIDONE
+SELECT generic_name, ROUND(SUM(total_drug_cost)/ SUM(total_day_supply),2) AS daily_cost
+FROM prescription
+JOIN drug
+USING (drug_name)
+GROUP BY generic_name
+ORDER BY daily_cost DESC;
 
+--Answer a. Insulin
+--Answer b. Esterase Inhibitor
 --Q4.
 --a. For each drug in the drug table, return the drug name and then a column named 'drug_type' which says 'opioid' for drugs which have opioid_drug_flag = 'Y', says 'antibiotic' for those drugs which have antibiotic_drug_flag = 'Y', and says 'neither' for all other drugs. **Hint:** You may want to use a CASE expression for this. See https://www.postgresqltutorial.com/postgresql-tutorial/postgresql-case/ 
 
 --b. Building off of the query you wrote for part a, determine whether more was spent (total_drug_cost) on opioids or on antibiotics. Hint: Format the total costs as MONEY for easier comparision.
-SELECT drug_name, total_drug_cost,
+
+SELECT drug_name,
+    CASE
+        WHEN opioid_drug_flag = 'Y' THEN 'Opioid'
+        WHEN antibiotic_drug_flag = 'Y' THEN 'Antibiotic'
+        ELSE 'Neither'
+    END AS drug_type
+FROM drug;
+
+SELECT  
 	(CASE 
 		WHEN opioid_drug_flag = 'Y' THEN 'Opioid'
 		WHEN antibiotic_drug_flag = 'Y' THEN 'Antibiotic'
 		ELSE 'Neither'
-	END) AS drug_type
+	END) AS drug_type,
+	SUM(total_drug_cost) AS total_cost
 FROM drug
 JOIN prescription
-USING(drug_name);
+USING(drug_name)
+--WHERE opioid_drug_flag = 'Y' OR antibiotic_drug_flag = 'Y'
+GROUP BY drug_type;
+
+--Q5.  a. How many CBSAs are in Tennessee? **Warning:** The cbsa table contains information for all states, not just Tennessee.
+
+--b. Which cbsa has the largest combined population? Which has the smallest? Report the CBSA name and total population.
+
+--c. What is the largest (in terms of population) county which is not included in a CBSA? Report the county name and population.
+
+SELECT COUNT(fipscounty)
+FROM cbsa
+WHERE fipscounty LIKE '47%'
+
+--Answer a: 42
+
+SELECT cbsaname, cbsa.cbsa, SUM(population.population) AS total_population
+FROM cbsa
+JOIN population
+ON cbsa.fipscounty = population.fipscounty
+GROUP BY cbsaname, cbsa.cbsa
+ORDER BY total_population DESC;
+
+--Answer b: Nashville-Davidson-Murfreesboro-Franklin, TN 1,830,410 is the highest and Morristown,TN 116,352 is the lowest.
+
+
+--Q6. 
+--a. Find all rows in the prescription table where total_claims is at least 3000. Report the drug_name and the total_claim_count.
+
+--b. For each instance that you found in part a, add a column that indicates whether the drug is an opioid.
+
+--c. Add another column to you answer from the previous part which gives the prescriber first and last name associated with each row.
+
+SELECT drug_name, total_claim_count,
+	CASE WHEN opioid_drug_flag = 'Y' THEN 'Opioid'
+	ELSE 'Not Opioid'
+	END AS Opioid
+	, nppes_provider_first_name
+	, nppes_provider_last_org_name
+FROM prescription
+JOIN drug
+USING (drug_name)
+JOIN prescriber
+USING (npi)
+WHERE total_claim_count >= 3000
 
 
 
